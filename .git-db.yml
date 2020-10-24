@@ -1,0 +1,6 @@
+databases:
+  dev:
+    type: postgres
+    connection:
+      containerId: git-db_postgres_1
+      username: postgres
