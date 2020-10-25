@@ -52,7 +52,7 @@ export function commitPostgres(name: string, config: IPostgresConnection) {
     prev = currentLatestCommit.sha;
     const fileContents = readFileSync(backupPath, 'utf8').toString();
     const patch = generatePatchForFile(journal, name, prev, fileContents);
-    file = file.replace(/\.sql.tmp$/, '.patch');
+    file = file.replace(/\.sql.tmp$/, `${backupSha256.slice(0, 8)}.patch`);
     writeFileSync(file, patch);
     unlinkSync(backupPath);
   } else {

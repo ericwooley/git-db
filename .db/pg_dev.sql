@@ -1251,7 +1251,6 @@ COPY public.actor (actor_id, first_name, last_name, last_update) FROM stdin;
 198	MARY	KEITEL	2020-02-15 09:34:33+00
 199	JULIA	FAWCETT	2020-02-15 09:34:33+00
 200	THORA	TEMPLE	2020-02-15 09:34:33+00
-201	Eric	Wooley	2020-10-25 19:30:08.442542+00
 \.
 
 
@@ -47484,7 +47483,7 @@ COPY public.store (store_id, manager_staff_id, address_id, last_update) FROM std
 -- Name: actor_actor_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
 --
 
-SELECT pg_catalog.setval('public.actor_actor_id_seq', 201, true);
+SELECT pg_catalog.setval('public.actor_actor_id_seq', 200, true);
 
 
 --
