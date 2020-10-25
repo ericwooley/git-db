@@ -4,8 +4,9 @@ import { inspect } from 'util';
 
 import debug from 'debug';
 import shelljs from 'shelljs';
-import yup, { boolean, object, string } from 'yup';
+import yup, { object, string } from 'yup';
 
+import { Driver, IConnection } from './commit';
 import {
   addCommitToJournal,
   generatePatchForFile,
@@ -15,14 +16,30 @@ import {
   writeJournal,
 } from './journal';
 import { getDbPath, sha256FileContent } from './utils';
-const logger = debug('git-db:pg:commit');
-const connectionValidator = object({
-  containerId: string().required(),
-  username: string(),
-  useCompose: boolean(),
-}).required();
-type IPostgresConnection = yup.InferType<typeof connectionValidator>;
 
+const logger = debug('git-db:commit:pg');
+const connectionValidator = object({
+  username: string(),
+}).required();
+type IPostgresConnection = yup.InferType<typeof connectionValidator> &
+  IConnection;
+
+export class PostgresDriver extends Driver<IPostgresConnection> {
+  protected getBackupCommand(): string {
+    const userNameStr = this.config.username
+      ? `-U ${this.config.username}`
+      : '';
+    return [`pg_dumpall -f /${formatPgBackupName(this.name)}`, userNameStr]
+      .filter((s) => s)
+      .join(' ');
+  }
+  protected getVersionCommand(): string {
+    return 'postgres --version';
+  }
+  public getBackupName(): string {
+    return `pg_${this.name}.sql.tmp`;
+  }
+}
 export function commitPostgres(name: string, config: IPostgresConnection) {
   connectionValidator.validateSync(config);
   logger(`creating backup of ${name}...`);
