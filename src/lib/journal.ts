@@ -1,29 +1,36 @@
 import { readFileSync, writeFileSync } from 'fs';
 import { join } from 'path';
 
+import debug from 'debug';
 import { diff_match_patch as DiffMatchPatch } from 'diff-match-patch';
 import yaml from 'js-yaml';
 import { lazy, object, string } from 'yup';
 
 import { getDbPath } from './utils';
-const journalDBValidator = object({
-  tags: lazy((v) =>
-    object(Object.values(v as any).map(() => string().required())).required()
-  ),
-  commits: lazy((v) =>
-    object(Object.values(v as any).map(() => string().required())).required()
-  ),
-  metadata: lazy((v) =>
-    object(Object.values(v as any).map(() => string().required())).required()
-  ),
+const logger = debug('git-db:journal');
+export const journalDBValidator = object({
+  tags: dynamicObj(() => string().required()),
+  commits: dynamicObj(() => string().required()),
+  metadata: dynamicObj(() => string().required()),
 }).required();
-const journalValidator = object({
+export const journalValidator = object({
   version: string().required(),
-  databases: lazy((obj) =>
-    object(Object.values(obj as any).map(() => journalDBValidator)).required()
-  ),
+  databases: dynamicObj(() => journalDBValidator),
 }).required();
 
+function dynamicObj(type: (value: any) => any) {
+  return lazy((obj: any) => {
+    return object(
+      Object.fromEntries(
+        Object.entries(obj as any)
+          .filter(([key]) => key !== '0')
+          .map(([key, value]) => {
+            return [key, type(value)];
+          })
+      )
+    ).required();
+  });
+}
 export interface IJournal {
   version: string;
   databases: {
@@ -53,12 +60,8 @@ export interface ICommit {
 }
 
 function isJournal(j: any): j is IJournal {
-  try {
-    journalValidator.validateSync(j);
-    return true;
-  } catch (e) {
-    return false;
-  }
+  journalValidator.validateSync(j);
+  return true;
 }
 
 export function getJournalPath(): string {
@@ -88,9 +91,12 @@ export function writeJournal(journal: IJournal) {
 export function addCommitToJournal(
   journal: IJournal,
   name: string,
-  initialCommit: ICommit,
+  commit: ICommit,
   options: { databaseMetadata?: { [key: string]: string } } = {}
 ): IJournal {
+  if (journal.databases[name]?.commits[commit.sha]) {
+    throw new Error(`commit: '${commit.sha.slice(0, 8)}' already exists`);
+  }
   const prev = journal.databases[name]?.tags.latest || '';
   const {
     databaseMetadata = journal.databases[name]?.metadata || {},
@@ -104,11 +110,11 @@ export function addCommitToJournal(
           ...databaseMetadata,
         },
         tags: {
-          latest: initialCommit.sha,
+          latest: commit.sha,
         },
         commits: {
           ...(journal.databases[name]?.commits || {}),
-          [initialCommit.sha]: { ...initialCommit, prev },
+          [commit.sha]: { ...commit, prev },
         },
       },
     },
@@ -137,8 +143,12 @@ function rebuildFileForCommit(
   commitId: string
 ) {
   const commit = getCommitByCommitId(journal, name, commitId);
+  logger('checking commit', commit);
   // this is the initial commit, it should be a full file
-  if (!commit.prev) return readFileSync(commit.file, 'utf8').toString();
+  if (!commit.prev) {
+    logger('--> commit has no prev, loading base file:', commit.file);
+    return readFileSync(commit.file, 'utf8').toString();
+  }
   // these should be patch files now
   const previousFile = rebuildFileForCommit(journal, name, commit.prev);
   const dmp = new DiffMatchPatch();

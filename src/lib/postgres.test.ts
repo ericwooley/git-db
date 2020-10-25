@@ -9,51 +9,16 @@ test('backup command', (t) => {
         containerId: 'my-postgres',
         username: 'postgres',
       },
-      '1234',
-      'test'
-    )
-  );
-});
-
-test('backup command with docker-compose', (t) => {
-  t.snapshot(
-    formatBackupCommand(
-      {
-        containerId: 'my-postgres',
-        username: 'postgres',
-        useCompose: true,
-      },
-      '1234',
+      'my-postgres',
       'test'
     )
   );
 });
 
 test('cp command', (t) => {
-  t.snapshot(
-    formatCopyToRepoCommand(
-      {
-        containerId: 'my-postgres',
-        username: 'postgres',
-      },
-      '1234',
-      'test',
-      { dbPath: '/' }
-    )
-  );
+  t.snapshot(formatCopyToRepoCommand('postgres', 'test', { dbPath: '/' }));
 });
 
 test('cp command with docker-compose', (t) => {
-  t.snapshot(
-    formatCopyToRepoCommand(
-      {
-        containerId: 'my-postgres',
-        username: 'postgres',
-        useCompose: true,
-      },
-      '1234',
-      'test',
-      { dbPath: '/' }
-    )
-  );
+  t.snapshot(formatCopyToRepoCommand('postgres', 'test', { dbPath: '/' }));
 });
