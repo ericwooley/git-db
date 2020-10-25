@@ -25,7 +25,6 @@ type IPostgresConnection = yup.InferType<typeof connectionValidator>;
 
 export function commitPostgres(name: string, config: IPostgresConnection) {
   connectionValidator.validateSync(config);
-  const dateAsNum = Date.now();
   logger(`creating backup of ${name}...`);
   const containerId = config.useCompose
     ? exec(`docker-compose ps -q ${config.containerId}`, { silent: true })
@@ -63,7 +62,7 @@ export function commitPostgres(name: string, config: IPostgresConnection) {
   // we don't want to save an absolute path
   file = file.replace(process.cwd(), '.');
   const commit: Omit<ICommit, 'id'> = {
-    date: dateAsNum,
+    date: Date.now(),
     prevId: prevId,
     file,
     sha: backupSha256,
