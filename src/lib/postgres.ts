@@ -9,7 +9,6 @@ import yup, { boolean, object, string } from 'yup';
 import {
   addCommitToJournal,
   generatePatchForFile,
-  getCommitByCommitId,
   getCommitByTag,
   getJournal,
   ICommit,
@@ -40,19 +39,17 @@ export function commitPostgres(name: string, config: IPostgresConnection) {
   const backupName = formatPgBackupName(name);
   const backupPath = join(getDbPath(), backupName);
   const backupSha256 = sha256FileContent(backupPath);
-  if (getCommitByCommitId(journal, name, backupSha256))
-    throw new Error(`commitId: ${backupSha256} already exists`);
   logger(`backup sha: ${backupSha256.slice(0, 8)}`);
-  let prev = '';
+  let prevId = '';
   let file = backupPath;
   const currentLatestCommit = getCommitByTag(journal, name, 'latest');
   // if we have a previous commit, generate a patch, and use that.
   if (currentLatestCommit && currentLatestCommit.sha !== backupSha256) {
     logger(`-- found earlier commit ${currentLatestCommit.sha.slice(0, 8)} --`);
-    prev = currentLatestCommit.sha;
+    prevId = currentLatestCommit.id;
     const fileContents = readFileSync(backupPath, 'utf8').toString();
-    const patch = generatePatchForFile(journal, name, prev, fileContents);
-    file = file.replace(/\.sql.tmp$/, `${backupSha256.slice(0, 8)}.patch`);
+    const patch = generatePatchForFile(journal, name, prevId, fileContents);
+    file = file.replace(/\.sql.tmp$/, `_${backupSha256.slice(0, 12)}.patch`);
     writeFileSync(file, patch);
     unlinkSync(backupPath);
   } else {
@@ -65,9 +62,9 @@ export function commitPostgres(name: string, config: IPostgresConnection) {
   }
   // we don't want to save an absolute path
   file = file.replace(process.cwd(), '.');
-  const commit: ICommit = {
+  const commit: Omit<ICommit, 'id'> = {
     date: dateAsNum,
-    prev,
+    prevId: prevId,
     file,
     sha: backupSha256,
     metadata: {

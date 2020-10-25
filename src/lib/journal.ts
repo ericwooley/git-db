@@ -6,7 +6,7 @@ import { diff_match_patch as DiffMatchPatch } from 'diff-match-patch';
 import yaml from 'js-yaml';
 import { lazy, object, string } from 'yup';
 
-import { getDbPath } from './utils';
+import { getDbPath, sha256Str } from './utils';
 const logger = debug('git-db:journal');
 export const journalDBValidator = object({
   tags: dynamicObj(() => string().required()),
@@ -54,8 +54,9 @@ export interface ICommit {
   metadata: { [key: string]: string };
   // date created
   date: number;
-  prev: string;
+  prevId: string;
   sha: string;
+  id: string;
   file: string;
 }
 
@@ -88,19 +89,27 @@ export function writeJournal(journal: IJournal) {
   writeFileSync(getJournalPath(), yaml.safeDump(journal));
 }
 
+export function createCommitId(contentSha: string, prevId: string) {
+  return sha256Str(prevId + contentSha);
+}
 export function addCommitToJournal(
   journal: IJournal,
   name: string,
-  commit: ICommit,
+  commit: Omit<ICommit, 'id'>,
   options: { databaseMetadata?: { [key: string]: string } } = {}
 ): IJournal {
-  if (journal.databases[name]?.commits[commit.sha]) {
-    throw new Error(`commit: '${commit.sha.slice(0, 8)}' already exists`);
-  }
   const prev = journal.databases[name]?.tags.latest || '';
+
   const {
     databaseMetadata = journal.databases[name]?.metadata || {},
   } = options;
+  const commitId = createCommitId(commit.sha, prev);
+  if (prev) {
+    const prevCommit = getCommitByCommitId(journal, name, prev);
+    if (prevCommit.sha === commit.sha) {
+      throw new Error(`Nothing to commit`);
+    }
+  }
   return {
     ...journal,
     databases: {
@@ -110,11 +119,12 @@ export function addCommitToJournal(
           ...databaseMetadata,
         },
         tags: {
-          latest: commit.sha,
+          ...(journal.databases[name]?.tags || {}),
+          latest: commitId,
         },
         commits: {
           ...(journal.databases[name]?.commits || {}),
-          [commit.sha]: { ...commit, prev },
+          [commitId]: { ...commit, prevId: prev, id: commitId },
         },
       },
     },
@@ -145,12 +155,12 @@ function rebuildFileForCommit(
   const commit = getCommitByCommitId(journal, name, commitId);
   logger('checking commit', commit);
   // this is the initial commit, it should be a full file
-  if (!commit.prev) {
+  if (!commit.prevId) {
     logger('--> commit has no prev, loading base file:', commit.file);
     return readFileSync(commit.file, 'utf8').toString();
   }
   // these should be patch files now
-  const previousFile = rebuildFileForCommit(journal, name, commit.prev);
+  const previousFile = rebuildFileForCommit(journal, name, commit.prevId);
   const dmp = new DiffMatchPatch();
   const patch = dmp.patch_fromText(
     readFileSync(commit.file, 'utf8').toString()
