@@ -3,21 +3,13 @@ databases:
   dev:
     metadata: {}
     tags:
-      latest: 0b92fce09f13716dc1af6fb7192d9dce559f377a6feb7411e227302f55f95436
+      latest: e04cff3b0100b79f23a09822d8e8694876808fcf3ac186858d4eb26e42c76e88
     commits:
       e04cff3b0100b79f23a09822d8e8694876808fcf3ac186858d4eb26e42c76e88:
-        date: 1603664342382
+        date: 1603664526362
         prevId: ''
         file: ./.db/pg_dev.sql
         sha: 6dd5cd8958c8d48232b660a7d7f50a0f52040dbebec4ddea41bc1dd74178838d
         metadata:
           version: postgres (PostgreSQL) 12.4 (Debian 12.4-1.pgdg100+1)
         id: e04cff3b0100b79f23a09822d8e8694876808fcf3ac186858d4eb26e42c76e88
-      0b92fce09f13716dc1af6fb7192d9dce559f377a6feb7411e227302f55f95436:
-        date: 1603664393823
-        prevId: e04cff3b0100b79f23a09822d8e8694876808fcf3ac186858d4eb26e42c76e88
-        file: ./.db/pg_dev_0af23e088d4c.patch
-        sha: 0af23e088d4c03445758d46e087a83f67e7fd46209fc056aa5ee84ea3ebe1aff
-        metadata:
-          version: postgres (PostgreSQL) 12.4 (Debian 12.4-1.pgdg100+1)
-        id: 0b92fce09f13716dc1af6fb7192d9dce559f377a6feb7411e227302f55f95436
