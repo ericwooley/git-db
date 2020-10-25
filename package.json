@@ -44,11 +44,13 @@
   },
   "dependencies": {
     "@bitauth/libauth": "^1.17.1",
+    "@types/diff-match-patch": "^1.0.32",
     "@types/js-yaml": "^3.12.5",
     "@types/node": "^14.14.2",
     "@types/shelljs": "^0.8.8",
     "@types/yup": "^0.29.8",
     "debug": "^4.2.0",
+    "diff-match-patch": "^1.0.5",
     "js-yaml": "^3.14.0",
     "shelljs": "^0.8.4",
     "yargs": "^16.1.0",

@@ -9,7 +9,8 @@ test('backup command', (t) => {
         containerId: 'my-postgres',
         username: 'postgres',
       },
-      '1234'
+      '1234',
+      'test'
     )
   );
 });
@@ -22,7 +23,8 @@ test('backup command with docker-compose', (t) => {
         username: 'postgres',
         useCompose: true,
       },
-      '1234'
+      '1234',
+      'test'
     )
   );
 });
@@ -35,6 +37,7 @@ test('cp command', (t) => {
         username: 'postgres',
       },
       '1234',
+      'test',
       { dbPath: '/' }
     )
   );
@@ -49,6 +52,7 @@ test('cp command with docker-compose', (t) => {
         useCompose: true,
       },
       '1234',
+      'test',
       { dbPath: '/' }
     )
   );

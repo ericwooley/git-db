@@ -25,6 +25,35 @@ yargs(hideBin(process.argv))
           type: 'string',
           choices: Object.keys(parsedFile.databases),
         })
+        .option('tags', {
+          type: 'array',
+          description:
+            'Tag this commit with a name easier to remember. There can only be one commit for each tag',
+        })
+        .demandOption('database');
+    },
+    (argv) => {
+      const config = parsedFile.databases[argv.database];
+      if (!config) throw new Error(`${argv.database} config not found`);
+      if (config.type === 'postgres') {
+        commitPostgres(argv.database, config.connection as any);
+      }
+    }
+  )
+  .command(
+    'restore [database] [commitId]',
+    'restore a snapshot',
+    (yargs) => {
+      return yargs
+        .positional('database', {
+          describe: 'database connection (from config) to connect to.',
+          type: 'string',
+          choices: Object.keys(parsedFile.databases),
+        })
+        .positional('commitId', {
+          type: 'string',
+          description: 'the commitId or tag to use, (latest for most recent)',
+        })
         .demandOption('database');
     },
     (argv) => {
