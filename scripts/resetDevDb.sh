@@ -6,4 +6,4 @@ rm -rf .db/ &&
   docker-compose up -d &&
   sleep 5 &&
   npm run initDb &&
-  npx ts-node ./src/index.ts commit dev "$@"
+  npx ts-node ./src/index.ts commit dev -m "initial commit" -t "initial"

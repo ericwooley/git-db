@@ -12,14 +12,16 @@ import {
   createCommitId,
   generatePatchForFile,
   getCommitByAnyId,
+  getCommitByBranch,
   getCommitByCommitId,
   getJournal,
   ICommit,
   IJournal,
   rebuildFileForCommit,
+  updateBranchInJournal,
   writeJournal,
 } from './journal';
-import { getHead, setHead } from './tracking';
+import { getHead, setBranch, setHead } from './tracking';
 import { getDbPath, sha256FileContent } from './utils';
 
 const connectionValidator = object({
@@ -159,10 +161,17 @@ export abstract class Driver<T extends IConnection> {
     logger(inspect(journal.databases, false, 5));
   };
   public checkout(commitId: string) {
-    const logger = debug('git-db:checkout');
-    const commit = getCommitByAnyId(this.journal, this.name, commitId);
+    // const logger = debug('git-db:checkout');
+    const commitFromBranch = getCommitByBranch(
+      this.journal,
+      this.name,
+      commitId
+    );
+    const checkoutFromBranch = !!commitFromBranch;
+    const commit =
+      commitFromBranch || getCommitByAnyId(this.journal, this.name, commitId);
     if (!commit) throw new Error(`${commitId} not found`);
-    logger('Found commit', commit);
+
     const restoreFile = join(this.getDbPath(), 'restore.tmp');
     writeFileSync(
       restoreFile,
@@ -172,9 +181,27 @@ export abstract class Driver<T extends IConnection> {
       this.copyFromHostToDocker(restoreFile, '/restoreFile');
       const dockerCommands = this.getRestoreCommands('/restoreFile');
       this.dockerExecCommands(dockerCommands);
+      if (checkoutFromBranch) {
+        setBranch(this.name, commitId, commit.id);
+      } else {
+        setHead(this.name, commit.id);
+      }
     } finally {
       unlinkSilent(restoreFile);
     }
+  }
+  public newBranch(branchName: string) {
+    const logger = debug('git-db:checkout:new-branch');
+    const head = getHead(this.name);
+    if (!head) throw new Error('You must have a HEAD to checkout a new branch');
+    const updatedJournal = updateBranchInJournal(
+      this.journal,
+      this.name,
+      branchName,
+      head
+    );
+    writeJournal(updatedJournal);
+    setBranch(this.name, branchName, head);
   }
 }
 const fsLogger = debug('git-db:fs');

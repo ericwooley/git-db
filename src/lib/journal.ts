@@ -133,6 +133,7 @@ export function addCommitToJournal(
     databases: {
       ...journal.databases,
       [name]: {
+        ...(journal.databases[name] || {}),
         branches: {
           ...(journal.databases[name]?.branches || {}),
         },
@@ -143,6 +144,27 @@ export function addCommitToJournal(
         commits: {
           ...(journal.databases[name]?.commits || {}),
           [commit.id]: commit,
+        },
+      },
+    },
+  };
+}
+
+export function updateBranchInJournal(
+  journal: IJournal,
+  name: string,
+  branchName: string,
+  commitId: string
+): IJournal {
+  return {
+    ...journal,
+    databases: {
+      ...journal.databases,
+      [name]: {
+        ...(journal.databases[name] || {}),
+        branches: {
+          ...(journal.databases[name]?.branches || {}),
+          [branchName]: commitId,
         },
       },
     },

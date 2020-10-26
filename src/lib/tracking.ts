@@ -8,14 +8,27 @@ import { safeDump, safeLoad } from 'js-yaml';
 import { getDbPath } from './utils';
 const logger = debug('git-db:head');
 
-const headPath = join(getDbPath(), '.head.yml');
+const headPath = join(getDbPath(), '.refs.yml');
 const reflogPath = join(getDbPath(), '.reflog');
 // tehehe
 export const getHead = (dbName: string): string => {
-  return getAllHeads()[dbName] || '';
+  return getAllHeads()[dbName]?.commitId || '';
 };
 
-export function getAllHeads(): { [dbName: string]: string } {
+export const getRef = (dbName: string) => {
+  return (
+    getAllHeads()[dbName] || {
+      commitId: '',
+      branch: '',
+    }
+  );
+};
+
+interface ITrackRef {
+  [dbName: string]: { branch: string; commitId: string } | undefined;
+}
+
+export function getAllHeads(): ITrackRef {
   try {
     const yamlRaw = readFileSync(headPath, 'utf8').toString();
     const head: any = safeLoad(yamlRaw);
@@ -30,11 +43,22 @@ export function getAllHeads(): { [dbName: string]: string } {
 export function setHead(dbName: string, commitId: string) {
   const heads = getAllHeads();
   addToReflog(dbName, 'HEAD', commitId);
-  return writeFileSync(headPath, safeDump({ ...heads, [dbName]: commitId }));
+  const dbRef = { branch: '', ...(heads[dbName] || {}), commitId };
+  return writeFileSync(headPath, safeDump({ ...heads, [dbName]: dbRef }));
+}
+export function setBranch(dbName: string, branch: string, commitId: string) {
+  const heads = getAllHeads();
+  addToReflog(dbName, branch, commitId);
+  const dbRef = { ...(heads[dbName] || {}), branch, commitId };
+  return writeFileSync(headPath, safeDump({ ...heads, [dbName]: dbRef }));
 }
 
 function addToReflog(dbName: string, ref: string, commitId: string) {
-  writeFileSync(reflogPath, `${EOL}${dbName}:${ref}:${commitId}`, {
-    flag: 'a',
-  });
+  writeFileSync(
+    reflogPath,
+    `${EOL}${new Date().toISOString()} ${dbName}:${ref}:${commitId}`,
+    {
+      flag: 'a',
+    }
+  );
 }

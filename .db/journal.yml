@@ -1,17 +1,27 @@
 version: 0.0.0
 databases:
   dev:
-    branches: {}
+    branches:
+      withNewActors: d6dc2432f627efc47b420d1c0d9d9fc105c4f91d9d3bf4372bd6434f3cff6d87
     metadata: {}
     tags:
       initial: e04cff3b0100b79f23a09822d8e8694876808fcf3ac186858d4eb26e42c76e88
     commits:
       e04cff3b0100b79f23a09822d8e8694876808fcf3ac186858d4eb26e42c76e88:
-        date: 1603681134257
-        message: Initial Commit
+        date: 1603685059346
+        message: initial commit
         id: e04cff3b0100b79f23a09822d8e8694876808fcf3ac186858d4eb26e42c76e88
         prevId: ''
         file: ./.db/dev/pg_dev.sql
         sha: 6dd5cd8958c8d48232b660a7d7f50a0f52040dbebec4ddea41bc1dd74178838d
+        metadata:
+          version: postgres (PostgreSQL) 12.4 (Debian 12.4-1.pgdg100+1)
+      d6dc2432f627efc47b420d1c0d9d9fc105c4f91d9d3bf4372bd6434f3cff6d87:
+        date: 1603686029814
+        message: add actors
+        id: d6dc2432f627efc47b420d1c0d9d9fc105c4f91d9d3bf4372bd6434f3cff6d87
+        prevId: e04cff3b0100b79f23a09822d8e8694876808fcf3ac186858d4eb26e42c76e88
+        file: ./.db/dev/pg_dev_88762be4c469.patch
+        sha: 88762be4c4692763a74a929a63e256b49865e93d49af6ec90b25942153c261e4
         metadata:
           version: postgres (PostgreSQL) 12.4 (Debian 12.4-1.pgdg100+1)

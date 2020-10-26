@@ -60,12 +60,22 @@ yargs(hideBin(process.argv))
         .positional('commitId', {
           type: 'string',
           description: 'the commitId, branch, or tag to use',
-          demandOption: true,
+        })
+        .option('newBranch', {
+          alias: 'b',
+          type: 'string',
+          description: 'create a new branch from HEAD',
         });
     },
     (argv) => {
       const driver = getDriver(parsedFile, argv.database);
-      driver.checkout(argv.commitId);
+      if (!argv.commitId && !argv.newBranch)
+        throw new Error('You must use a commitId or new branch');
+
+      if (argv.commitId && argv.newBranch)
+        throw new Error('You cannot specify a commit and create a new branch');
+      if (argv.commitId) driver.checkout(argv.commitId);
+      else if (argv.newBranch) driver.newBranch(argv.newBranch);
     }
   )
   .demandCommand()

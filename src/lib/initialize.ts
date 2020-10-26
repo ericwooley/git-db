@@ -14,7 +14,7 @@ export function init() {
       ignorePath,
       [
         '# these files are used to track current location etc...',
-        '.head.yml',
+        '.refs.yml',
         '.reflog',
         '.lock',
         '*.tmp',
