@@ -84,8 +84,9 @@ export abstract class Driver<T extends IConnection> {
   public getVersion = () => {
     return this.dockerExec(this.getVersionCommand());
   };
-  public commit = (message: string) => {
+  public commit = (message: string, tags: string[]) => {
     const logger = debug('git-db:commit');
+    logger({ tags, message });
     init();
     connectionValidator.validateSync(this.config);
     logger(`creating backup of ${this.name}...`);
@@ -107,7 +108,7 @@ export abstract class Driver<T extends IConnection> {
       const currentCommit = getCommitByCommitId(
         this.journal,
         this.name,
-        currentHead || 'latest'
+        currentHead || ''
       );
       // if we have a previous commit, generate a patch, and use that.
       if (currentCommit) {
@@ -145,7 +146,7 @@ export abstract class Driver<T extends IConnection> {
 
       logger('adding commit', commit);
 
-      journal = addCommitToJournal(journal, this.name, commit);
+      journal = addCommitToJournal(journal, this.name, commit, tags);
       renameSync(file, eventualFile);
       writeJournal(journal);
       setHead(this.name, commitId);

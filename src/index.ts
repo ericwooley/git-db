@@ -26,8 +26,10 @@ yargs(hideBin(process.argv))
           type: 'string',
           choices: Object.keys(parsedFile.databases),
         })
-        .option('tags', {
+        .option('tag', {
+          alias: 't',
           type: 'array',
+          string: true,
           description:
             'Tag this commit with a name easier to remember. There can only be one commit for each tag',
         })
@@ -41,7 +43,7 @@ yargs(hideBin(process.argv))
     },
     (argv) => {
       const driver = getDriver(parsedFile, argv.database);
-      driver.commit(argv.message);
+      driver.commit(argv.message, argv.tag || []);
     }
   )
   .command(

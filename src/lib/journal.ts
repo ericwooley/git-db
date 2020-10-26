@@ -110,6 +110,7 @@ export function addCommitToJournal(
   journal: IJournal,
   name: string,
   commit: ICommit,
+  tags: string[],
   options: { databaseMetadata?: { [key: string]: string } } = {}
 ): IJournal {
   const {
@@ -121,6 +122,12 @@ export function addCommitToJournal(
   if (prevCommit && prevCommit.sha === commit.sha) {
     throw new Error(`Nothing to commit`);
   }
+  const updatedTags = {
+    ...(journal.databases[name]?.tags || {}),
+  };
+  tags.forEach((t) => {
+    updatedTags[t] = commit.id;
+  });
   return {
     ...journal,
     databases: {
@@ -132,10 +139,7 @@ export function addCommitToJournal(
         metadata: {
           ...databaseMetadata,
         },
-        tags: {
-          ...(journal.databases[name]?.tags || {}),
-          latest: commit.id,
-        },
+        tags: updatedTags,
         commits: {
           ...(journal.databases[name]?.commits || {}),
           [commit.id]: commit,
@@ -150,7 +154,7 @@ export function getCommitByAnyId(journal: IJournal, name: string, id: string) {
   if (fromBranch) return fromBranch;
 
   const fromTag = getCommitByTag(journal, name, id);
-  if (fromTag) return fromBranch;
+  if (fromTag) return fromTag;
 
   const fromId = getCommitByCommitId(journal, name, id);
   if (fromId) return fromId;
@@ -170,7 +174,9 @@ export function getCommitByTag(
   name: string,
   tag: string
 ): ICommit | undefined {
+  logger('checking tags', journal.databases[name]?.tags, 'for', tag);
   const commitId = journal.databases[name]?.tags[tag] || '';
+  logger('found', commitId);
   return getCommitByCommitId(journal, name, commitId);
 }
 export function getCommitByCommitId(
