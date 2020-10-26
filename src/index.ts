@@ -2,8 +2,9 @@
 // import { hideBin } from 'yargs/helpers';
 import yargs from 'yargs/yargs';
 
-import { parseFile } from './lib/parseFile';
-import { commitPostgres } from './lib/postgres';
+import { Driver, IConnection } from './lib/commit';
+import { PostgresDriver } from './lib/drivers/postgres';
+import { IConfig, parseFile } from './lib/parseFile';
 import resolveFile from './lib/resolve';
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
@@ -30,14 +31,17 @@ yargs(hideBin(process.argv))
           description:
             'Tag this commit with a name easier to remember. There can only be one commit for each tag',
         })
+        .option('message', {
+          alias: 'm',
+          describe: 'Describe database changes',
+          type: 'string',
+          demandOption: true,
+        })
         .demandOption('database');
     },
     (argv) => {
-      const config = parsedFile.databases[argv.database];
-      if (!config) throw new Error(`${argv.database} config not found`);
-      if (config.type === 'postgres') {
-        commitPostgres(argv.database, config.connection as any);
-      }
+      const driver = getDriver(parsedFile, argv.database);
+      driver.commit(argv.message);
     }
   )
   .command(
@@ -57,11 +61,7 @@ yargs(hideBin(process.argv))
         .demandOption('database');
     },
     (argv) => {
-      const config = parsedFile.databases[argv.database];
-      if (!config) throw new Error(`${argv.database} config not found`);
-      if (config.type === 'postgres') {
-        commitPostgres(argv.database, config.connection as any);
-      }
+      throw new Error('not implemented');
     }
   )
   .demandCommand()
@@ -70,3 +70,14 @@ yargs(hideBin(process.argv))
     type: 'boolean',
     description: 'Run with verbose logging',
   }).argv;
+
+function getDriver(parsedFile: IConfig, name: string) {
+  const config = parsedFile.databases[name];
+  if (!config) throw new Error(`${name} config not found`);
+  let driver: Driver<IConnection>;
+  if (config.type === 'postgres') {
+    driver = new PostgresDriver(config.connection as any, name);
+    // commitPostgres(name, config.connection as any);
+  } else throw new Error(`No driver for database: ${name}`);
+  return driver;
+}

@@ -4,13 +4,23 @@ import { join } from 'path';
 import debug from 'debug';
 import { diff_match_patch as DiffMatchPatch } from 'diff-match-patch';
 import yaml from 'js-yaml';
-import { lazy, object, string } from 'yup';
+import { lazy, number, object, string } from 'yup';
 
 import { getDbPath, sha256Str } from './utils';
 const logger = debug('git-db:journal');
 export const journalDBValidator = object({
   tags: dynamicObj(() => string().required()),
-  commits: dynamicObj(() => string().required()),
+  commits: dynamicObj(() =>
+    object({
+      metadata: object().required(),
+      date: number().required(),
+      message: string().required(),
+      prevId: string(),
+      sha: string().required(),
+      id: string().required(),
+      file: string().required(),
+    }).required()
+  ),
   metadata: dynamicObj(() => string().required()),
 }).required();
 export const journalValidator = object({
@@ -35,6 +45,9 @@ export interface IJournal {
   version: string;
   databases: {
     [key: string]: {
+      branches: {
+        [key: string]: string;
+      };
       metadata: {
         [key: string]: string;
       };
@@ -54,6 +67,7 @@ export interface ICommit {
   metadata: { [key: string]: string };
   // date created
   date: number;
+  message: string;
   prevId: string;
   sha: string;
   id: string;
@@ -95,36 +109,36 @@ export function createCommitId(contentSha: string, prevId: string) {
 export function addCommitToJournal(
   journal: IJournal,
   name: string,
-  commit: Omit<ICommit, 'id'>,
+  commit: ICommit,
   options: { databaseMetadata?: { [key: string]: string } } = {}
 ): IJournal {
-  const prev = journal.databases[name]?.tags.latest || '';
-
   const {
     databaseMetadata = journal.databases[name]?.metadata || {},
   } = options;
-  const commitId = createCommitId(commit.sha, prev);
-  if (prev) {
-    const prevCommit = getCommitByCommitId(journal, name, prev);
-    if (prevCommit.sha === commit.sha) {
-      throw new Error(`Nothing to commit`);
-    }
+
+  const prevCommit = getCommitByCommitId(journal, name, commit.prevId);
+
+  if (prevCommit && prevCommit.sha === commit.sha) {
+    throw new Error(`Nothing to commit`);
   }
   return {
     ...journal,
     databases: {
       ...journal.databases,
       [name]: {
+        branches: {
+          ...(journal.databases[name]?.branches || {}),
+        },
         metadata: {
           ...databaseMetadata,
         },
         tags: {
           ...(journal.databases[name]?.tags || {}),
-          latest: commitId,
+          latest: commit.id,
         },
         commits: {
           ...(journal.databases[name]?.commits || {}),
-          [commitId]: { ...commit, prevId: prev, id: commitId },
+          [commit.id]: commit,
         },
       },
     },
@@ -143,7 +157,7 @@ export function getCommitByCommitId(
   journal: IJournal,
   name: string,
   commitId: string
-) {
+): ICommit | undefined {
   return journal.databases[name]?.commits[commitId];
 }
 
@@ -153,6 +167,7 @@ function rebuildFileForCommit(
   commitId: string
 ) {
   const commit = getCommitByCommitId(journal, name, commitId);
+  if (!commit) throw new Error(`Commit missing: ${commitId}`);
   logger('checking commit', commit);
   // this is the initial commit, it should be a full file
   if (!commit.prevId) {

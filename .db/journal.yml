@@ -1,15 +1,17 @@
 version: 0.0.0
 databases:
   dev:
+    branches: {}
     metadata: {}
     tags:
       latest: e04cff3b0100b79f23a09822d8e8694876808fcf3ac186858d4eb26e42c76e88
     commits:
       e04cff3b0100b79f23a09822d8e8694876808fcf3ac186858d4eb26e42c76e88:
-        date: 1603664526362
+        date: 1603673374607
+        message: Initial Commit
+        id: e04cff3b0100b79f23a09822d8e8694876808fcf3ac186858d4eb26e42c76e88
         prevId: ''
-        file: ./.db/pg_dev.sql
+        file: ./.db/dev/pg_dev.sql
         sha: 6dd5cd8958c8d48232b660a7d7f50a0f52040dbebec4ddea41bc1dd74178838d
         metadata:
           version: postgres (PostgreSQL) 12.4 (Debian 12.4-1.pgdg100+1)
-        id: e04cff3b0100b79f23a09822d8e8694876808fcf3ac186858d4eb26e42c76e88

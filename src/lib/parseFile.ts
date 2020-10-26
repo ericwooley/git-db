@@ -52,7 +52,7 @@ const readFileByType = {
   json: (file: string) => fs.readFileSync(file).toJSON(),
 };
 
-interface IConfig {
+export interface IConfig {
   databases: { [dbName: string]: yup.InferType<typeof validateConfig> };
 }
 

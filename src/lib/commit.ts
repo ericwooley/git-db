@@ -6,15 +6,18 @@ import debug from 'debug';
 import shelljs from 'shelljs';
 import yup, { boolean, object, string } from 'yup';
 
+import { init } from './initialize';
 import {
   addCommitToJournal,
+  createCommitId,
   generatePatchForFile,
-  getCommitByTag,
+  getCommitByCommitId,
   getJournal,
   ICommit,
   IJournal,
   writeJournal,
 } from './journal';
+import { getHead, setHead } from './tracking';
 import { getDbPath, sha256FileContent } from './utils';
 
 const connectionValidator = object({
@@ -36,14 +39,19 @@ export abstract class Driver<T extends IConnection> {
   protected journal: IJournal = getJournal();
   protected containerId = '';
   constructor(protected config: T, protected name: string) {
+    logger('config:', config);
     this.containerId = config.useCompose
       ? exec(`docker-compose ps -q ${config.containerId}`, { silent: true })
       : config.containerId;
   }
+  protected abstract validateConfig(): void;
   protected abstract getBackupCommand(): string;
   protected abstract getVersionCommand(): string;
   public abstract getBackupName(): string;
-  public exec = (command: string) => {
+  private getDbPath() {
+    return join(getDbPath(), this.name);
+  }
+  public dockerExec = (command: string) => {
     return exec(`docker exec ${this.containerId} ${command}`);
   };
   public copy = (file: string, dest: string) => {
@@ -52,71 +60,94 @@ export abstract class Driver<T extends IConnection> {
   public transferBackupFromDockerToHost() {
     return this.copy(
       this.getBackupName(),
-      join(getDbPath(), this.getBackupName())
+      join(this.getDbPath(), this.getBackupName())
     );
   }
-  public createBackup = () => {
-    return exec(this.getBackupCommand());
+  public createBackupInDocker = () => {
+    return this.dockerExec(this.getBackupCommand());
   };
   public getVersion = () => {
-    return exec(this.getVersionCommand());
+    return this.dockerExec(this.getVersionCommand());
   };
-  public commit = () => {
+  public commit = (message: string) => {
+    init();
     connectionValidator.validateSync(this.config);
     logger(`creating backup of ${this.name}...`);
-    let journal = getJournal();
+    let journal = this.journal;
     // const driver = new DBDriver(config, containerId, name, journal);
-    this.createBackup();
-    shelljs.mkdir('-p', getDbPath());
+    this.createBackupInDocker();
+    shelljs.mkdir('-p', this.getDbPath());
 
     this.transferBackupFromDockerToHost();
     const version = this.getVersion();
     const backupName = this.getBackupName();
-    const backupPath = join(getDbPath(), backupName);
+    const backupPath = join(this.getDbPath(), backupName);
     const backupSha256 = sha256FileContent(backupPath);
     logger(`backup sha: ${backupSha256.slice(0, 8)}`);
     let prevId = '';
     let file = backupPath;
-    const currentLatestCommit = getCommitByTag(journal, this.name, 'latest');
-    // if we have a previous commit, generate a patch, and use that.
-    if (currentLatestCommit && currentLatestCommit.sha !== backupSha256) {
-      logger(
-        `-- found earlier commit ${currentLatestCommit.sha.slice(0, 8)} --`
-      );
-      prevId = currentLatestCommit.id;
-      const fileContents = readFileSync(backupPath, 'utf8').toString();
-      const patch = generatePatchForFile(
-        journal,
+    try {
+      const currentHead = getHead(this.name);
+      const currentCommit = getCommitByCommitId(
+        this.journal,
         this.name,
-        prevId,
-        fileContents
+        currentHead || 'latest'
       );
-      file = file.replace(/\.sql.tmp$/, `_${backupSha256.slice(0, 12)}.patch`);
-      writeFileSync(file, patch);
-      unlinkSync(backupPath);
-    } else {
-      logger('previous commit not found', currentLatestCommit);
-      // if we do not have a previous commit, remove the .tmp, and use that as the
-      // base file
-      const fileWithoutTmp = file.replace(/\.tmp$/, '');
-      renameSync(file, fileWithoutTmp);
-      file = fileWithoutTmp;
-    }
-    // we don't want to save an absolute path
-    file = file.replace(process.cwd(), '.');
-    const commit: Omit<ICommit, 'id'> = {
-      date: Date.now(),
-      prevId: prevId,
-      file,
-      sha: backupSha256,
-      metadata: {
-        version,
-      },
-    };
+      // if we have a previous commit, generate a patch, and use that.
+      if (currentCommit) {
+        logger(`-- found earlier commit ${currentCommit.sha.slice(0, 8)} --`);
+        prevId = currentCommit.id;
+        const fileContents = readFileSync(backupPath, 'utf8').toString();
+        const patch = generatePatchForFile(
+          journal,
+          this.name,
+          prevId,
+          fileContents
+        );
+        file = file.replace(
+          /\.sql.tmp$/,
+          `_${backupSha256.slice(0, 12)}.patch.tmp`
+        );
+        writeFileSync(file, patch);
+        unlinkSync(backupPath);
+      }
+      // we don't want to save an absolute path
+      file = file.replace(process.cwd(), '.');
+      const eventualFile = file.replace(/\.tmp$/, '');
+      const commitId = createCommitId(backupSha256, prevId);
+      const commit: ICommit = {
+        date: Date.now(),
+        message,
+        id: commitId,
+        prevId: prevId,
+        file: eventualFile,
+        sha: backupSha256,
+        metadata: {
+          version,
+        },
+      };
 
-    logger('adding commit', commit);
-    journal = addCommitToJournal(journal, this.name, commit);
-    writeJournal(journal);
-    console.log(inspect(journal.databases, false, 5));
+      logger('adding commit', commit);
+
+      journal = addCommitToJournal(journal, this.name, commit);
+      renameSync(file, eventualFile);
+      writeJournal(journal);
+      setHead(this.name, commitId);
+    } catch (e) {
+      logger('removing', file);
+      unlinkSilent(file);
+      unlinkSilent(backupPath);
+      throw e;
+    }
+
+    logger(inspect(journal.databases, false, 5));
   };
+}
+
+function unlinkSilent(file: string) {
+  try {
+    unlinkSync(file);
+  } catch (e) {
+    logger(`non-issue: could not unlink ${file}: ${e.toString()}`);
+  }
 }

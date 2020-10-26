@@ -18,6 +18,8 @@
     "pgRestoreFile": "docker-compose exec postgres psql -U postgres -f",
     "initDb": "npm run pgRestoreFile -- /host-data/pagila-schema.sql && npm run pgRestoreFile -- /host-data/pagila-data.sql",
     "test": "run-s build test:*",
+    "resetDevDb": "rm -rf .db/ && docker-compose down && docker-compose up -d && sleep 5 && npm run initDb",
+    "devSnapshot": "DEBUG='git-db:*' npx ts-node ./src/index.ts commit dev -m",
     "test:lint": "eslint src --ext .ts",
     "test:prettier": "prettier \"src/**/*.ts\" --list-different",
     "test:unit": "nyc --silent ava",
