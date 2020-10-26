@@ -4,14 +4,32 @@ databases:
     branches: {}
     metadata: {}
     tags:
-      latest: e04cff3b0100b79f23a09822d8e8694876808fcf3ac186858d4eb26e42c76e88
+      latest: dbe612a73e4932e91bba2fd5d5dd03b371075da8f4256ada536ebce235d46930
     commits:
       e04cff3b0100b79f23a09822d8e8694876808fcf3ac186858d4eb26e42c76e88:
-        date: 1603673374607
+        date: 1603678740586
         message: Initial Commit
         id: e04cff3b0100b79f23a09822d8e8694876808fcf3ac186858d4eb26e42c76e88
         prevId: ''
         file: ./.db/dev/pg_dev.sql
         sha: 6dd5cd8958c8d48232b660a7d7f50a0f52040dbebec4ddea41bc1dd74178838d
+        metadata:
+          version: postgres (PostgreSQL) 12.4 (Debian 12.4-1.pgdg100+1)
+      dd1711f8da1852951db75ed983a87218021d2fb2239a9531d4968e77ac1841cc:
+        date: 1603679690906
+        message: add pickles
+        id: dd1711f8da1852951db75ed983a87218021d2fb2239a9531d4968e77ac1841cc
+        prevId: e04cff3b0100b79f23a09822d8e8694876808fcf3ac186858d4eb26e42c76e88
+        file: ./.db/dev/pg_dev_cccb64f27aa7.patch
+        sha: cccb64f27aa73511e96c42d51483c822723c1d5f125b33a6ccad294d9109dfda
+        metadata:
+          version: postgres (PostgreSQL) 12.4 (Debian 12.4-1.pgdg100+1)
+      dbe612a73e4932e91bba2fd5d5dd03b371075da8f4256ada536ebce235d46930:
+        date: 1603679770099
+        message: add pickles
+        id: dbe612a73e4932e91bba2fd5d5dd03b371075da8f4256ada536ebce235d46930
+        prevId: dd1711f8da1852951db75ed983a87218021d2fb2239a9531d4968e77ac1841cc
+        file: ./.db/dev/pg_dev_f88f08a97664.patch
+        sha: f88f08a97664b8124da0a5240b906348f8a1883915c51d9bde57038018e6ab44
         metadata:
           version: postgres (PostgreSQL) 12.4 (Debian 12.4-1.pgdg100+1)

@@ -2,7 +2,7 @@
 // import { hideBin } from 'yargs/helpers';
 import yargs from 'yargs/yargs';
 
-import { Driver, IConnection } from './lib/commit';
+import { Driver, IConnection } from './lib/driver';
 import { PostgresDriver } from './lib/drivers/postgres';
 import { IConfig, parseFile } from './lib/parseFile';
 import resolveFile from './lib/resolve';
@@ -45,23 +45,25 @@ yargs(hideBin(process.argv))
     }
   )
   .command(
-    'restore [database] [commitId]',
-    'restore a snapshot',
+    'checkout [database] [commitId]',
+    'checkout a snapshot',
     (yargs) => {
       return yargs
         .positional('database', {
           describe: 'database connection (from config) to connect to.',
           type: 'string',
           choices: Object.keys(parsedFile.databases),
+          demandOption: true,
         })
         .positional('commitId', {
           type: 'string',
-          description: 'the commitId or tag to use, (latest for most recent)',
-        })
-        .demandOption('database');
+          description: 'the commitId, branch, or tag to use',
+          demandOption: true,
+        });
     },
     (argv) => {
-      throw new Error('not implemented');
+      const driver = getDriver(parsedFile, argv.database);
+      driver.checkout(argv.commitId);
     }
   )
   .demandCommand()

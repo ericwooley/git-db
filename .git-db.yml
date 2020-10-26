@@ -3,5 +3,6 @@ databases:
     type: postgres
     connection:
       containerId: postgres
+      dbName: postgres
       useCompose: true
       username: postgres

@@ -145,6 +145,26 @@ export function addCommitToJournal(
   };
 }
 
+export function getCommitByAnyId(journal: IJournal, name: string, id: string) {
+  const fromBranch = getCommitByBranch(journal, name, id);
+  if (fromBranch) return fromBranch;
+
+  const fromTag = getCommitByTag(journal, name, id);
+  if (fromTag) return fromBranch;
+
+  const fromId = getCommitByCommitId(journal, name, id);
+  if (fromId) return fromId;
+}
+
+export function getCommitByBranch(
+  journal: IJournal,
+  name: string,
+  tag: string
+): ICommit | undefined {
+  const commitId = journal.databases[name]?.branches[tag] || '';
+  return getCommitByCommitId(journal, name, commitId);
+}
+
 export function getCommitByTag(
   journal: IJournal,
   name: string,
@@ -161,7 +181,7 @@ export function getCommitByCommitId(
   return journal.databases[name]?.commits[commitId];
 }
 
-function rebuildFileForCommit(
+export function rebuildFileForCommit(
   journal: IJournal,
   name: string,
   commitId: string

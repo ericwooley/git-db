@@ -2,3 +2,4 @@
 .head.yml
 .reflog
 .lock
+*.tmp

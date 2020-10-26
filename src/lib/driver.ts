@@ -11,10 +11,12 @@ import {
   addCommitToJournal,
   createCommitId,
   generatePatchForFile,
+  getCommitByAnyId,
   getCommitByCommitId,
   getJournal,
   ICommit,
   IJournal,
+  rebuildFileForCommit,
   writeJournal,
 } from './journal';
 import { getHead, setHead } from './tracking';
@@ -26,50 +28,64 @@ const connectionValidator = object({
 }).required();
 
 export type IConnection = yup.InferType<typeof connectionValidator>;
-
-const logger = debug('git-db:commit');
+export interface IDockerCommands {
+  commands: string[];
+  user?: string;
+}
+const execLogger = debug('git-db:exec');
+shelljs.config.fatal = true;
 function exec(cmd: string, options: shelljs.ExecOptions = {}) {
-  logger(`Executing: ${cmd}`);
-  return shelljs
-    .exec(cmd, { fatal: true, ...options })
-    .toString()
-    .trim();
+  execLogger(`Executing: ${cmd}`);
+  const result = shelljs.exec(cmd, { fatal: true, async: false, ...options });
+  if (!result) throw new Error(`Error executing ${cmd}`);
+  return result.stdout?.toString().trim() || '';
 }
 export abstract class Driver<T extends IConnection> {
   protected journal: IJournal = getJournal();
   protected containerId = '';
   constructor(protected config: T, protected name: string) {
-    logger('config:', config);
     this.containerId = config.useCompose
       ? exec(`docker-compose ps -q ${config.containerId}`, { silent: true })
       : config.containerId;
+    this.validateConfig();
   }
   protected abstract validateConfig(): void;
-  protected abstract getBackupCommand(): string;
+  protected abstract getBackupCommand(): IDockerCommands;
   protected abstract getVersionCommand(): string;
+  protected abstract getRestoreCommands(restoreFile: string): IDockerCommands;
   public abstract getBackupName(): string;
   private getDbPath() {
     return join(getDbPath(), this.name);
   }
-  public dockerExec = (command: string) => {
-    return exec(`docker exec ${this.containerId} ${command}`);
+  public dockerExec = (cmd: string) => {
+    return exec(`docker exec ${this.containerId} ${cmd}`);
   };
-  public copy = (file: string, dest: string) => {
+  public dockerExecCommands = (options: IDockerCommands) => {
+    const userOption = options.user ? `-u ${options.user} ` : '';
+    return options.commands.map((c) =>
+      exec(`docker exec ${userOption}${this.containerId} ${c}`)
+    );
+  };
+  public copyFromDockerToHost = (file: string, dest: string) => {
     return exec(`docker cp ${this.containerId}:/${file} ${dest}`);
   };
+  public copyFromHostToDocker = (file: string, dest: string) => {
+    return exec(`docker cp ${file} ${this.containerId}:${dest}`);
+  };
   public transferBackupFromDockerToHost() {
-    return this.copy(
+    return this.copyFromDockerToHost(
       this.getBackupName(),
       join(this.getDbPath(), this.getBackupName())
     );
   }
   public createBackupInDocker = () => {
-    return this.dockerExec(this.getBackupCommand());
+    return this.dockerExecCommands(this.getBackupCommand());
   };
   public getVersion = () => {
     return this.dockerExec(this.getVersionCommand());
   };
   public commit = (message: string) => {
+    const logger = debug('git-db:commit');
     init();
     connectionValidator.validateSync(this.config);
     logger(`creating backup of ${this.name}...`);
@@ -139,15 +155,32 @@ export abstract class Driver<T extends IConnection> {
       unlinkSilent(backupPath);
       throw e;
     }
-
     logger(inspect(journal.databases, false, 5));
   };
+  public checkout(commitId: string) {
+    const logger = debug('git-db:checkout');
+    const commit = getCommitByAnyId(this.journal, this.name, commitId);
+    if (!commit) throw new Error(`${commitId} not found`);
+    logger('Found commit', commit);
+    const restoreFile = join(this.getDbPath(), 'restore.tmp');
+    writeFileSync(
+      restoreFile,
+      rebuildFileForCommit(this.journal, this.name, commit.id)
+    );
+    try {
+      this.copyFromHostToDocker(restoreFile, '/restoreFile');
+      const dockerCommands = this.getRestoreCommands('/restoreFile');
+      this.dockerExecCommands(dockerCommands);
+    } finally {
+      unlinkSilent(restoreFile);
+    }
+  }
 }
-
+const fsLogger = debug('git-db:fs');
 function unlinkSilent(file: string) {
   try {
     unlinkSync(file);
   } catch (e) {
-    logger(`non-issue: could not unlink ${file}: ${e.toString()}`);
+    fsLogger(`non-issue: could not unlink ${file}: ${e.toString()}`);
   }
 }

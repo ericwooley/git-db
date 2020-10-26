@@ -17,6 +17,7 @@ export function init() {
         '.head.yml',
         '.reflog',
         '.lock',
+        '*.tmp',
       ].join(EOL)
     );
   }
