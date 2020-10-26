@@ -1,3 +1,3 @@
 # git-db
 
-Manage database snapshots with git-lfs
+Manage dev database snapshots with git
