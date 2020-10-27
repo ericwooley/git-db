@@ -1,9 +1,11 @@
 #!/usr/bin/env node
 // import { hideBin } from 'yargs/helpers';
+import { Argv } from 'yargs';
 import yargs from 'yargs/yargs';
 
 import { Driver, IConnection } from './lib/driver';
 import { PostgresDriver } from './lib/drivers/postgres';
+import { logCommits } from './lib/log';
 import { IConfig, parseFile } from './lib/parseFile';
 import resolveFile from './lib/resolve';
 
@@ -14,18 +16,22 @@ const resolvedFile = resolveFile([
   '.git-db.yaml',
   '.git-db.json',
 ]);
+
+function addDBCommand(yargs: Argv) {
+  return yargs.positional('database', {
+    describe: 'database connection (from config) to connect to.',
+    type: 'string',
+    choices: Object.keys(parsedFile.databases),
+    demandOption: true,
+  });
+}
 const parsedFile = parseFile(resolvedFile[0]);
 yargs(hideBin(process.argv))
   .command(
     'commit [database]',
     'snapshot the current db',
     (yargs) => {
-      return yargs
-        .positional('database', {
-          describe: 'database connection (from config) to connect to.',
-          type: 'string',
-          choices: Object.keys(parsedFile.databases),
-        })
+      return addDBCommand(yargs)
         .option('tag', {
           alias: 't',
           type: 'array',
@@ -38,8 +44,7 @@ yargs(hideBin(process.argv))
           describe: 'Describe database changes',
           type: 'string',
           demandOption: true,
-        })
-        .demandOption('database');
+        });
     },
     (argv) => {
       const driver = getDriver(parsedFile, argv.database);
@@ -50,13 +55,7 @@ yargs(hideBin(process.argv))
     'checkout [database] [commitId]',
     'checkout a snapshot',
     (yargs) => {
-      return yargs
-        .positional('database', {
-          describe: 'database connection (from config) to connect to.',
-          type: 'string',
-          choices: Object.keys(parsedFile.databases),
-          demandOption: true,
-        })
+      return addDBCommand(yargs)
         .positional('commitId', {
           type: 'string',
           description: 'the commitId, branch, or tag to use',
@@ -76,6 +75,22 @@ yargs(hideBin(process.argv))
         throw new Error('You cannot specify a commit and create a new branch');
       if (argv.commitId) driver.checkout(argv.commitId);
       else if (argv.newBranch) driver.newBranch(argv.newBranch);
+    }
+  )
+  .command(
+    'log [database]',
+    'log previous commits, starting at HEAD',
+    (yargs) => {
+      return addDBCommand(yargs).option('limit', {
+        alias: 'l',
+        description: 'limit amount of outputs',
+        type: 'number',
+      });
+    },
+    (argv) => {
+      logCommits(argv.database, {
+        limit: argv.limit,
+      });
     }
   )
   .demandCommand()
