@@ -5,9 +5,9 @@ import yargs from 'yargs/yargs';
 
 import { Driver, IConnection } from './lib/driver';
 import { PostgresDriver } from './lib/drivers/postgres';
-import { logCommits } from './lib/log';
 import { IConfig, parseFile } from './lib/parseFile';
 import resolveFile from './lib/resolve';
+import { logCommits, status } from './lib/status';
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const { hideBin } = require('yargs/helpers');
@@ -91,6 +91,16 @@ yargs(hideBin(process.argv))
       logCommits(argv.database, {
         limit: argv.limit,
       });
+    }
+  )
+  .command(
+    'status [database]',
+    'log the status of the current head',
+    (yargs) => {
+      return addDBCommand(yargs);
+    },
+    (argv) => {
+      status(argv.database);
     }
   )
   .demandCommand()

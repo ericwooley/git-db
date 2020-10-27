@@ -6,7 +6,7 @@ import { diff_match_patch as DiffMatchPatch } from 'diff-match-patch';
 import yaml from 'js-yaml';
 import { lazy, number, object, string } from 'yup';
 
-import { getDbPath, sha256Str } from './utils';
+import { getDbPath, hashStr } from './utils';
 const logger = debug('git-db:journal');
 export const journalDBValidator = object({
   tags: dynamicObj(() => string().required()),
@@ -56,7 +56,7 @@ export interface IJournal {
         [tag: string]: string;
       };
       commits: {
-        // sha256 of file
+        // sha of file
         [commitId: string]: ICommit;
       };
     };
@@ -78,6 +78,30 @@ function isJournal(j: any): j is IJournal {
   journalValidator.validateSync(j);
   return true;
 }
+
+export const getBranchesByCommitId = (journal: IJournal, dbName: string) => {
+  const db = journal.databases[dbName];
+  if (!db) throw new Error(`${dbName} not found`);
+  const branches = db.branches;
+  return invertObject(branches);
+};
+
+export const getTagsByCommitId = (journal: IJournal, dbName: string) => {
+  const db = journal.databases[dbName];
+  if (!db) throw new Error(`${dbName} not found`);
+  const tags = db.tags;
+  return invertObject(tags);
+};
+
+const invertObject = (obj: { [k: string]: string }) =>
+  Object.entries(obj).reduce((t, [key, value]) => {
+    if (!t[value]) {
+      t[value] = [];
+    }
+    const arr = t[value];
+    arr.push(key);
+    return t;
+  }, {} as { [commitId: string]: string[] });
 
 export function getJournalPath(): string {
   const dbPath = join(getDbPath(), 'journal.yml');
@@ -104,7 +128,7 @@ export function writeJournal(journal: IJournal) {
 }
 
 export function createCommitId(contentSha: string, prevId: string) {
-  return sha256Str(prevId + contentSha);
+  return hashStr(prevId + contentSha);
 }
 export function addCommitToJournal(
   journal: IJournal,
