@@ -18,6 +18,7 @@ export function init() {
         '.reflog',
         '.lock',
         '*.tmp',
+        'target',
       ].join(EOL)
     );
   }

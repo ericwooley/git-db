@@ -62,3 +62,15 @@ function addToReflog(dbName: string, ref: string, commitId: string) {
     }
   );
 }
+
+export function getTarget() {
+  try {
+    return readFileSync('./.db/target', 'utf8').toString().trim();
+  } catch (e) {
+    return '';
+  }
+}
+
+export function setTarget(target: string) {
+  return writeFileSync('./.db/target', target);
+}

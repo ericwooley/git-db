@@ -1,13 +1,15 @@
 #!/usr/bin/env node
 // import { hideBin } from 'yargs/helpers';
-import { Argv } from 'yargs';
+import { Argv, string } from 'yargs';
 import yargs from 'yargs/yargs';
 
 import { Driver, IConnection } from './lib/driver';
 import { PostgresDriver } from './lib/drivers/postgres';
+import { getJournal } from './lib/journal';
 import { IConfig, parseFile } from './lib/parseFile';
 import resolveFile from './lib/resolve';
 import { logCommits, status } from './lib/status';
+import { getTarget, setTarget } from './lib/tracking';
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const { hideBin } = require('yargs/helpers');
@@ -16,19 +18,56 @@ const resolvedFile = resolveFile([
   '.git-db.yaml',
   '.git-db.json',
 ]);
-
+let currentTarget = getTarget();
 function addDBCommand(yargs: Argv) {
-  return yargs.positional('database', {
+  return yargs.option('database', {
     describe: 'database connection (from config) to connect to.',
     type: 'string',
     choices: Object.keys(parsedFile.databases),
-    demandOption: true,
+    default: currentTarget,
+    demandOption: false,
   });
 }
+
+const checkTarget = (argv: { database: string }) => {
+  if (!argv.database)
+    throw new Error('No database selected, use `db select [database]');
+};
 const parsedFile = parseFile(resolvedFile[0]);
+currentTarget = currentTarget || Object.keys(parsedFile.databases)[0] || '';
 yargs(hideBin(process.argv))
   .command(
-    'commit [database]',
+    'select [database]',
+    'select a database',
+    (yargs) =>
+      yargs.positional('database', {
+        type: 'string',
+        description: 'Database to select for use',
+        default: currentTarget || Object.keys(parsedFile.databases)[0] || '',
+        choices: Object.keys(parsedFile.databases),
+      }),
+    (argv) => {
+      setTarget(argv.database);
+    }
+  )
+  .command(
+    'branches',
+    'list branches',
+    (yargs) => addDBCommand(yargs),
+    (argv) => {
+      console.log(getJournal().databases[argv.database]?.branches);
+    }
+  )
+  .command(
+    'tags',
+    'list branches',
+    (yargs) => addDBCommand(yargs),
+    (argv) => {
+      console.log(getJournal().databases[argv.database]?.tags);
+    }
+  )
+  .command(
+    'commit',
     'snapshot the current db',
     (yargs) => {
       return addDBCommand(yargs)
@@ -47,12 +86,13 @@ yargs(hideBin(process.argv))
         });
     },
     (argv) => {
+      checkTarget(argv);
       const driver = getDriver(parsedFile, argv.database);
       driver.commit(argv.message, argv.tag || []);
     }
   )
   .command(
-    'checkout [database] [commitId]',
+    'checkout [commitId]',
     'checkout a snapshot',
     (yargs) => {
       return addDBCommand(yargs)
@@ -67,6 +107,7 @@ yargs(hideBin(process.argv))
         });
     },
     (argv) => {
+      checkTarget(argv);
       const driver = getDriver(parsedFile, argv.database);
       if (!argv.commitId && !argv.newBranch)
         throw new Error('You must use a commitId or new branch');
@@ -78,7 +119,7 @@ yargs(hideBin(process.argv))
     }
   )
   .command(
-    'log [database]',
+    'log',
     'log previous commits, starting at HEAD',
     (yargs) => {
       return addDBCommand(yargs).option('limit', {
@@ -88,18 +129,21 @@ yargs(hideBin(process.argv))
       });
     },
     (argv) => {
+      checkTarget(argv);
       logCommits(argv.database, {
         limit: argv.limit,
       });
     }
   )
   .command(
-    'status [database]',
+    'status',
     'log the status of the current head',
     (yargs) => {
       return addDBCommand(yargs);
     },
     (argv) => {
+      checkTarget(argv);
+      console.log('using argv.database', argv.database);
       status(argv.database);
     }
   )
@@ -108,7 +152,8 @@ yargs(hideBin(process.argv))
     alias: 'v',
     type: 'boolean',
     description: 'Run with verbose logging',
-  }).argv;
+  })
+  .completion().argv;
 
 function getDriver(parsedFile: IConfig, name: string) {
   const config = parsedFile.databases[name];

@@ -35,6 +35,7 @@ export function logCommits(dbName: string, options: ILogOptions = {}) {
 export function status(dbName: string) {
   const journal = getJournal();
   const ref = getRef(dbName);
+  console.log('ref', ref.commitId);
   console.log(
     commitToString(
       journal,
@@ -45,8 +46,13 @@ export function status(dbName: string) {
 }
 
 function commitToString(journal: IJournal, dbName: string, c?: ICommit) {
-  if (!c) return 'Commit not found';
-  return [c.id, buildRefString(journal, dbName, c.id), c.message].join(' ');
+  if (!c) return [dbName].join(' ');
+  return [
+    `[${dbName}]`,
+    c.id,
+    buildRefString(journal, dbName, c.id),
+    c.message,
+  ].join(' ');
 }
 
 export function buildRefString(
