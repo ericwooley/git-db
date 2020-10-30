@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // import { hideBin } from 'yargs/helpers';
-import { Argv, string } from 'yargs';
+import { Argv } from 'yargs';
 import yargs from 'yargs/yargs';
 
 import { Driver, IConnection } from './lib/driver';
@@ -143,7 +143,6 @@ yargs(hideBin(process.argv))
     },
     (argv) => {
       checkTarget(argv);
-      console.log('using argv.database', argv.database);
       status(argv.database);
     }
   )
@@ -154,7 +153,6 @@ yargs(hideBin(process.argv))
     description: 'Run with verbose logging',
   })
   .completion().argv;
-
 function getDriver(parsedFile: IConfig, name: string) {
   const config = parsedFile.databases[name];
   if (!config) throw new Error(`${name} config not found`);

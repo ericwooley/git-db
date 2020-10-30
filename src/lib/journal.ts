@@ -1,5 +1,6 @@
 import { readFileSync, writeFileSync } from 'fs';
 import { join } from 'path';
+import { inspect } from 'util';
 
 import debug from 'debug';
 import { diff_match_patch as DiffMatchPatch } from 'diff-match-patch';
@@ -12,7 +13,6 @@ export const journalDBValidator = object({
   tags: dynamicObj(() => string().required()),
   commits: dynamicObj(() =>
     object({
-      metadata: object().required(),
       date: number().required(),
       message: string().required(),
       prevId: string(),
@@ -21,7 +21,6 @@ export const journalDBValidator = object({
       file: string().required(),
     }).required()
   ),
-  metadata: dynamicObj(() => string().required()),
 }).required();
 export const journalValidator = object({
   version: string().required(),
@@ -31,13 +30,15 @@ export const journalValidator = object({
 function dynamicObj(type: (value: any) => any) {
   return lazy((obj: any) => {
     return object(
-      Object.fromEntries(
-        Object.entries(obj as any)
-          .filter(([key]) => key !== '0')
-          .map(([key, value]) => {
-            return [key, type(value)];
-          })
-      )
+      obj
+        ? Object.fromEntries(
+            Object.entries(obj as any)
+              .filter(([key]) => key !== '0')
+              .map(([key, value]) => {
+                return [key, type(value)];
+              })
+          )
+        : undefined
     ).required();
   });
 }
@@ -46,9 +47,6 @@ export interface IJournal {
   databases: {
     [key: string]: {
       branches: {
-        [key: string]: string;
-      };
-      metadata: {
         [key: string]: string;
       };
       tags: {
@@ -110,12 +108,13 @@ export function getJournalPath(): string {
 export function getJournal(): IJournal {
   try {
     const dbPath = getJournalPath();
-    const journal = yaml.safeLoad(readFileSync(dbPath, 'utf8'));
+    const content = readFileSync(dbPath, 'utf8');
+    const journal = yaml.safeLoad(content);
     if (!journal) throw new Error('Journal not found');
     if (isJournal(journal)) return journal;
     else throw new Error('Invalid Journal');
   } catch (e) {
-    console.warn('invalid journal', e.toString());
+    logger('invalid journal', inspect(e, true, 5));
     return {
       version: '0.0.0',
       databases: {},
@@ -134,15 +133,10 @@ export function addCommitToJournal(
   journal: IJournal,
   name: string,
   commit: ICommit,
-  tags: string[],
-  options: { databaseMetadata?: { [key: string]: string } } = {}
+  options: { tags?: string[]; branches?: string[] } = {}
 ): IJournal {
-  const {
-    databaseMetadata = journal.databases[name]?.metadata || {},
-  } = options;
-
   const prevCommit = getCommitByCommitId(journal, name, commit.prevId);
-
+  const { tags = [], branches = [] } = options;
   if (prevCommit && prevCommit.sha === commit.sha) {
     throw new Error(`Nothing to commit`);
   }
@@ -152,18 +146,19 @@ export function addCommitToJournal(
   tags.forEach((t) => {
     updatedTags[t] = commit.id;
   });
+  const updatedBranches = {
+    ...(journal.databases[name]?.branches || {}),
+  };
+  branches.forEach((b) => {
+    updatedBranches[b] = commit.id;
+  });
   return {
     ...journal,
     databases: {
       ...journal.databases,
       [name]: {
         ...(journal.databases[name] || {}),
-        branches: {
-          ...(journal.databases[name]?.branches || {}),
-        },
-        metadata: {
-          ...databaseMetadata,
-        },
+        branches: updatedBranches,
         tags: updatedTags,
         commits: {
           ...(journal.databases[name]?.commits || {}),

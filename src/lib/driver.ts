@@ -21,7 +21,7 @@ import {
   updateBranchInJournal,
   writeJournal,
 } from './journal';
-import { getHead, setBranch, setHead } from './tracking';
+import { getHead, getRef, setBranch, setHead } from './tracking';
 import { getDbPath, hashStrFileContent } from './utils';
 
 const connectionValidator = object({
@@ -98,6 +98,8 @@ export abstract class Driver<T extends IConnection> {
     shelljs.mkdir('-p', this.getDbPath());
 
     this.transferBackupFromDockerToHost();
+    const ref = getRef(this.name);
+    logger(ref);
     const version = this.getVersion();
     const backupName = this.getBackupName();
     const backupPath = join(this.getDbPath(), backupName);
@@ -147,11 +149,15 @@ export abstract class Driver<T extends IConnection> {
       };
 
       logger('adding commit', commit);
-
-      journal = addCommitToJournal(journal, this.name, commit, tags);
+      const branches = ref.branch ? [ref.branch] : [];
+      logger('updating branches', branches);
+      journal = addCommitToJournal(journal, this.name, commit, {
+        tags,
+        branches,
+      });
       renameSync(file, eventualFile);
       writeJournal(journal);
-      setHead(this.name, commitId);
+      setBranch(this.name, ref.branch, commitId);
     } catch (e) {
       logger('removing', file);
       unlinkSilent(file);
@@ -182,6 +188,7 @@ export abstract class Driver<T extends IConnection> {
       const dockerCommands = this.getRestoreCommands('/restoreFile');
       this.dockerExecCommands(dockerCommands);
       if (checkoutFromBranch) {
+        // in this case, commitId is the name of the branch
         setBranch(this.name, commitId, commit.id);
       } else {
         setHead(this.name, commit.id);

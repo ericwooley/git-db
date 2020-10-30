@@ -35,20 +35,28 @@ export function logCommits(dbName: string, options: ILogOptions = {}) {
 export function status(dbName: string) {
   const journal = getJournal();
   const ref = getRef(dbName);
-  console.log('ref', ref.commitId);
   console.log(
     commitToString(
       journal,
       dbName,
-      getCommitByCommitId(journal, dbName, ref.commitId)
+      getCommitByCommitId(journal, dbName, ref.commitId),
+      {
+        formatDbName: (n) => `${n}:${ref.branch}`,
+      }
     )
   );
 }
 
-function commitToString(journal: IJournal, dbName: string, c?: ICommit) {
+function commitToString(
+  journal: IJournal,
+  dbName: string,
+  c?: ICommit,
+  options: { formatDbName?: (dbName: string) => string } = {}
+) {
   if (!c) return [dbName].join(' ');
+  const { formatDbName = (s: string) => s } = options;
   return [
-    `[${dbName}]`,
+    `[${formatDbName(dbName)}]`,
     c.id,
     buildRefString(journal, dbName, c.id),
     c.message,

@@ -19,7 +19,7 @@ export const getRef = (dbName: string) => {
   return (
     getAllHeads()[dbName] || {
       commitId: '',
-      branch: '',
+      branch: 'main',
     }
   );
 };

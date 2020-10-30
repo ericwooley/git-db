@@ -5,7 +5,6 @@ const devJournal = {
   version: '0.0.0',
   databases: {
     dev: {
-      metadata: {},
       tags: {
         latest:
           '6dd5cd8958c8d48232b660a7d7f50a0f52040dbebec4ddea41bc1dd74178838d',
