@@ -1,5 +1,6 @@
 {
   "name": "@ericwooley/git-db",
+  "private": false,
   "version": "1.0.0",
   "description": "Manage database snapshots with git-lfs",
   "main": "build/main/index.js",
